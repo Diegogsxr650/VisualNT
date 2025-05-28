@@ -1,0 +1,95 @@
+* exportar_movimien.prg
+
+SET DATE TO GERMAN
+SET PATH TO "C:\temp\PracticaSanAndres"
+
+LOCAL oExportador
+oExportador = CREATEOBJECT("ExportadorJSON")
+oExportador.Exportar("movimien.dbf", "C:\temp\PracticaSanAndres\movimien.json")
+
+DEFINE CLASS ExportadorJSON AS Custom
+
+    PROCEDURE Exportar(tcTabla, tcFicheroSalida)
+        LOCAL lnHandle, lcLinea, lnID, lcCampo, lcValor, i, lcCamposJSON
+
+        * Abrir tabla con índice documento
+        USE (FORCEEXT(tcTabla, "dbf")) ORDER documento IN 0 SHARED
+        SELECT (ALIAS())
+		
+		*Si el archivo ya existe, lo eliminamos
+		IF FILE("C:\temp\PracticaSanAndres\movimien.json")
+    		? "El archivo ya existe, intentamos eliminarlo."
+    		ERASE "C:\temp\PracticaSanAndres\movimien.json"
+		ENDIF
+
+        * Crear fichero JSON
+        ? "Intentando crear el archivo en: " + "C:\temp\PracticaSanAndres\movimien.json"
+		lnHandle = FCREATE("C:\temp\PracticaSanAndres\movimien.json")
+		IF lnHandle < 0
+    		? "No se pudo crear el fichero de salida. Error de sistema: " + SYS(2023)
+    		RETURN .F.
+		ENDIF
+
+
+
+        * Escribir inicio del JSON
+        =FPUTS(lnHandle, '{')
+        =FPUTS(lnHandle, '  "tabla": "' + tcTabla + '",')
+        =FPUTS(lnHandle, '  "lineas": {')
+
+        * Recorrer registros
+        GO TOP
+        lnID = 1
+        SCAN
+            lcCamposJSON = ''
+            FOR i = 1 TO FCOUNT()
+                lcCampo = FIELD(i)
+                IF TYPE(lcCampo) = "M"
+                    lcValor = ALLTRIM(MEMO(lcCampo))
+                ELSE
+                    lcValor = EVALUATE(lcCampo)
+                ENDIF
+
+                * Convertir valor a JSON-safe
+                DO CASE
+                    CASE TYPE(lcCampo) = "C" OR TYPE(lcCampo) = "M"
+                        lcValor = '"' + STRTRAN(ALLTRIM(lcValor), '"', '\"') + '"'
+                    CASE TYPE(lcCampo) = "D"
+                        lcValor = '"' + DTOC(lcValor) + '"'
+                    CASE TYPE(lcCampo) = "L"
+                        lcValor = IIF(lcValor, "true", "false")
+                    OTHERWISE  && numéricos, etc.
+                        lcValor = TRANSFORM(lcValor)
+                ENDCASE
+
+                lcCamposJSON = lcCamposJSON + '      "' + lcCampo + '": ' + lcValor
+                IF i < FCOUNT()
+                    lcCamposJSON = lcCamposJSON + ',' + CHR(13)
+                ELSE
+                    lcCamposJSON = lcCamposJSON + CHR(13)
+                ENDIF
+            ENDFOR
+
+            * Escribir objeto línea
+            lcLinea = '    "' + TRANSFORM(lnID) + '": {' + CHR(13) + lcCamposJSON + '    }'
+
+            IF !EOF()
+                =FPUTS(lnHandle, lcLinea + ',')
+            ELSE
+                =FPUTS(lnHandle, lcLinea)
+            ENDIF
+
+            lnID = lnID + 1
+        ENDSCAN
+
+        * Cierre del JSON
+        =FPUTS(lnHandle, '  }')
+        =FPUTS(lnHandle, '}')
+
+        =FCLOSE(lnHandle)
+        USE
+        ? "Fichero JSON generado correctamente: " + tcFicheroSalida
+        RETURN .T.
+    ENDPROC
+
+ENDDEFINE

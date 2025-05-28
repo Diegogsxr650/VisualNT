@@ -1,4 +1,4 @@
-
+SET CODEPAGE TO 1252 
 SET DATE TO GERMAN
 SET PATH TO "C:\temp\PracticaSanAndres"
 

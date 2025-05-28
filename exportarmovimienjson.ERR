@@ -1,0 +1,4 @@
+oExportador = NEWOBJECT("ExportadorJSON")
+Error in line 100: Statement is not in a procedure.
+oExportador.Exportar("movimien.dbf", "C:\temp\PracticaSanAndres\movimien.json")
+Error in line 101: Statement is not in a procedure.
